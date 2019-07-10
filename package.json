@@ -1,0 +1,17 @@
+{
+  "name": "minecraft-bedrock-ban",
+  "version": "1.0.0",
+  "description": "It can ban user! Auto command writer for bedrock server",
+  "main": "index.js",
+  "dependencies": {
+    "@types/node": "^12.6.2",
+    "iconv-lite": "^0.5.0"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}

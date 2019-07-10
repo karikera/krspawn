@@ -1,0 +1,20 @@
+// is comment
+// You can update triggers to use 'update-triggers' command in server console
+
+// [Hello Player]
+capture: /^\[.+\] Player connected: .+, xuid:(.+)$/
+compare: true
+command: say Hello $1!
+000000000000000
+
+// [Ban Players]
+capture: /^\[.+\] Player connected: .+, xuid:(.+)$/
+compare: x == $1
+command: kick $1
+0000000000000000 // xuid
+
+// [Set Adventure Mode Players]
+// Share same capture&compare with [Ban players]
+command: gamemode a $1
+2535458902102903 // ruakr
+2535433414763713 // hyunkonge
