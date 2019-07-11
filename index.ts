@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 
 import path = require('path');
 import fs = require('fs');
@@ -100,10 +101,15 @@ function makeCompare(line:string):Compare
             }
             else if (chr === '=')
             {
-                const nextchr = line.charAt(i++);
+                let nextchr = line.charAt(i++);
                 if (nextchr !== '=')
                 {
                     throw Error('Unexpected character: '+nextchr);
+                }
+                nextchr = line.charAt(i);
+                if (nextchr === '=')
+                {
+                    i++;
                 }
                 nextIsOperator = false;
             }
@@ -214,13 +220,135 @@ function makeCompare(line:string):Compare
     return <Compare> func;
 }
 
+function makeRegExp(regexp:string):RegExp
+{
+    if (regexp.startsWith('/'))
+    {
+        const endidx = regexp.lastIndexOf('/');
+        return new RegExp(regexp.substring(1, endidx), regexp.substr(endidx+1));
+    }
+    else
+    {
+        return new RegExp(regexp);
+    }
+}
+
+function send(command:string){
+    console.log('minecraft-be-ban> '+command);
+    spawned.stdin.write(iconv.encode(command+'\n', charset));
+}
+
+class Command
+{
+    private readonly queue:ItemRun[] = [];
+    private waiting:NodeJS.Timeout|undefined;
+    private waitTo:number = 0;
+    public static readonly all:Command[] = [];
+
+    constructor(public readonly command:string)
+    {
+        Command.all.push(this);
+    }
+
+    retry(run:ItemRun)
+    {
+        run.runAt = Date.now() + run.item.delay;
+        this.queue.push(run);
+        if (this.waiting)
+        {
+            clearTimeout(this.waiting);
+            this.waiting = undefined;
+        }
+        this.run();
+    }
+
+    run():void
+    {
+        this.waiting = undefined;
+        const n = this.queue.length;
+        if (n === 0) return;
+        const last = this.queue[n-1];
+        const now = Date.now();
+        const nextDelay = Math.max(last.runAt, this.waitTo) - now;
+        if (nextDelay > 0)
+        {
+            this.waiting = setTimeout(()=>this.run(), nextDelay);
+        }
+        else
+        {
+            last.run();
+            this.queue.pop();
+            this.waitTo = now + last.item.postDelay;
+            this.waiting = setTimeout(()=>this.run(), last.item.postDelay);
+        }
+    }
+
+    testAndRun(item:Item, arr:string[]):boolean
+    {
+        if (!item.compare(item.xuid, arr)) return false;
+        
+        const command = this.command.replace(/\$([0-9])/g, (match,v)=>v === '$' ? '$' : (arr[v] || ''));
+        const itemrun = new ItemRun(item, command);
+        this.queue.unshift(itemrun);
+        if (this.waiting === undefined)
+        {
+            this.run();
+        }
+        return true;
+    }
+}
+
 class Item
 {
-    constructor(
-        public readonly compare:Compare, 
-        public readonly command:string,
-        public readonly xuid:string)
+    public delay:number = 0;
+    public compare:Compare = ()=>true;
+    public command:Command|undefined;
+    public xuid:string = '';
+    public postDelay:number = 0;
+    public failDetection:RegExp|undefined;
+
+    clone():Item
     {
+        const out = new Item;
+        out.delay = this.delay;
+        out.compare = this.compare;
+        out.command = this.command;
+        out.xuid = this.xuid;
+        out.postDelay = this.postDelay;
+        out.failDetection = this.failDetection;
+        return out;
+    }
+}
+
+class ItemRun
+{
+    public runAt:number;
+
+    constructor(
+        public readonly item:Item,
+        public readonly command:string)
+    {
+        this.runAt = Date.now() + item.delay;
+    }
+
+    run()
+    {
+        send(this.command);
+        if (this.item.failDetection)
+        {
+            if (failTestings.length > 10) failTestings.pop();
+            failTestings.unshift(this);
+        }
+    }
+
+    failTestAndRun(text:string):boolean
+    {
+        if (this.item.failDetection!.test(text))
+        {
+            this.item.command!.retry(this);
+            return true;
+        }
+        return false;
     }
 }
 
@@ -228,18 +356,12 @@ class Capture
 {
     private readonly regexp:RegExp;
     private readonly items:Item[] = [];
+    public static all:Capture[] = [];
     
     constructor(line:string)
     {
-        if (line.startsWith('/'))
-        {
-            const endidx = line.lastIndexOf('/');
-            this.regexp = new RegExp(line.substring(1, endidx), line.substr(endidx+1));
-        }
-        else
-        {
-            this.regexp = new RegExp(line);
-        }
+        Capture.all.push(this);
+        this.regexp = makeRegExp(line);
     }
 
     testAndRun(text:string):void
@@ -249,18 +371,14 @@ class Capture
         {
             for (const item of this.items)
             {
-                if (item.compare(item.xuid, arr))
-                {
-                    const command = item.command.replace(/\$([0-9])/g, (match,v)=>v === '$' ? '$' : (arr[v] || ''))+'\n';
-                    spawned.stdin.write(iconv.encode(command, charset));
-                }
+                item.command!.testAndRun(item, arr);
             }
         }
     }
 
-    addItem(compare:Compare, command:string, xuid:string):void
+    addItem(item:Item):void
     {
-        this.items.push(new Item(compare, command, xuid));
+        this.items.push(item);
     }
 }
 
@@ -294,15 +412,15 @@ class LineDetector
     }
 }
 
-const captures:Capture[] = [];
+let failTestings:ItemRun[] = [];
 
 async function loadTriggers():Promise<void>
 {
-    captures.length = 0;
+    Capture.all.length = 0;
+    Command.all.length = 0;
 
     const fileName = 'triggers.txt';
-    let compare:Compare = ()=>true;
-    let command:string = '';
+    let item = new Item;
     let capture:Capture|undefined;
 
     let triggers_txt:string;
@@ -335,13 +453,21 @@ async function loadTriggers():Promise<void>
                 {
                 case 'capture':
                     capture = new Capture(value);
-                    captures.push(capture);
                     break;
                 case 'compare':
-                    compare = makeCompare(value);
+                    item.compare = makeCompare(value);
                     break;
                 case 'command':
-                    command = value;
+                    item.command = new Command(value);
+                    break;
+                case 'delay':
+                    item.delay = +value;
+                    break;
+                case 'post-delay':
+                    item.postDelay = +value;
+                    break;
+                case 'fail-detection':
+                    item.failDetection = makeRegExp(value);
                     break;
                 default:
                     throw Error('Unknown label ignored: '+label);
@@ -351,22 +477,30 @@ async function loadTriggers():Promise<void>
             {
                 if (capture)
                 {
-                    capture.addItem(compare, command, line);
+                    item.xuid = line;
+                    capture.addItem(item);
+                    item = item.clone();
                 }
             }
         }
         catch (err)
         {
-            console.error(`${fileName}(${lineNumber}): ${err.message}`);
+            console.error(`minecraft-be-ban> ${fileName}(${lineNumber}): ${err.message}`);
         }
     }
+}
+
+function spawn(command:string, args:string[]):child_process.ChildProcessWithoutNullStreams
+{
+    console.log(command+' '+args.join(' '));
+    return child_process.spawn(command, args);
 }
 
 (async()=>{
 
     {
         const runargs = process.argv.slice(2);
-        let runexec = './bedrock_server';
+        let runexec = '.' + path.sep + 'bedrock_server';
         if (runargs.length !== 0)
         {
             runexec = runargs.shift()!;
@@ -378,21 +512,23 @@ async function loadTriggers():Promise<void>
             const e = cp.indexOf('\n', s)-1;
             const codepage = cp.substring(s, e).trim();
             charset = CPMAP.get(codepage) || 'utf8';
-            spawned = child_process.spawn('cmd', ['/s', '/c', runexec].concat(runargs));
+            spawned = spawn('cmd', ['/s', '/c', runexec].concat(runargs));
         }
         else
         {
-            spawned = child_process.spawn(runexec, runargs);
+            spawned = spawn(runexec, runargs);
         }
         await loadTriggers();
-        if (runexec === 'init') return;
+        if (runexec === 'check') return;
     }
 
 
     const stdin = new LineDetector(command=>{
         if (command === 'update-triggers')
         {
-            loadTriggers();
+            loadTriggers().then(()=>{
+                console.log('minecraft-be-ban> Triggers updated')
+            });
         }  
         else
         {
@@ -400,7 +536,26 @@ async function loadTriggers():Promise<void>
         }
     });
     const stdout = new LineDetector(out=>{
-        for (const capture of captures)
+        if (failTestings.length !== 0)
+        {
+            const testing = failTestings;
+            failTestings = [];
+            for (let i=0;i<testing.length;)
+            {
+                if (testing[i].failTestAndRun(out))
+                {
+                    testing.splice(i, 1);
+                    break;
+                }
+                else
+                {
+                    i++;
+                }
+            }
+            failTestings.push(...testing);
+        }
+
+        for (const capture of Capture.all)
         {
             capture.testAndRun(out);
         }

@@ -9,8 +9,7 @@
             "request": "launch",
             "name": "Launch Program",
             "program": "${workspaceFolder}\\index.js",
-            "cwd": "D:\\Downloads\\minecraft-server",
-            "args": ["java -jar server.jar -nogui"],
+            "cwd": "D:\\Downloads\\bedrock-server-1.12.0.28",
             "outFiles": [
                 "${workspaceFolder}/**/*.js"
             ],
