@@ -16,8 +16,12 @@ And you can install it with `npm install -g minecraft-be-ban` command from conso
 4. Run `minecraft-be-ban`. it will run `./bedrock_server`. You need to run 
     If you use linux then you can run with `LD_LIBRARY_PATH=. minecraft-be-ban`
 
+## Help
+Question or Report: https://github.com/karikera/minecraft-be-ban/issues  
+Discord: https://discord.gg/uBA4eSz  
+My mothertongue is korean, My english is bad ´ㅡ`  
 
 ## Commands
 * `minecraft-be-ban init`: It will copies and validates `triggers.txt`
 * `minecraft-be-ban`: It will runs `./bedrock_server`
-* `minecraft-be-ban [commands]`: I will runs `[commands]`
+* `minecraft-be-ban [commands]`: It will runs `[commands]`
