@@ -13,7 +13,7 @@ And you can install it with `npm install -g minecraft-be-ban` command from conso
 2. Initialize with `minecraft-be-ban check` command!
     It will copys `triggers.txt` to working directory
 3. Modify `triggers.txt` to ban some XUIDs
-4. Run `minecraft-be-ban`. it will run `./bedrock_server`. You need to run 
+4. Run `minecraft-be-ban`. it will run `./bedrock_server`
     If you use linux then you can run with `LD_LIBRARY_PATH=. minecraft-be-ban`
 
 ## Help
