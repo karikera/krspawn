@@ -4,6 +4,7 @@
         "alwaysStrict": true,
         "sourceMap": true,
         "lib": ["esnext"],
-        "module": "commonjs"
+        "module": "commonjs",
+        "newLine": "LF"
     }
 }
