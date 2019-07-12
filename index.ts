@@ -58,6 +58,27 @@ function exec(cmd:string):Promise<string>
     });
 }
 
+const unique = {
+    maps: new WeakMap<{new(param:any):any}, Map<any, any>>(),
+    get<PARAM, T>(cls:{new(param:PARAM):T}, param:PARAM):T
+    {
+        let list = this.maps.get(cls);
+        if (!list)
+        {
+            list = new Map;
+            this.maps.set(cls, list);
+        }
+        let obj = list.get(param);
+        if (!obj)
+        {
+            obj = new cls(param);
+            list.set(param, obj);
+        }
+        return obj;
+    }
+};
+
+
 class Compare
 {
     public readonly test:(x:string, r:string[])=>unknown;
@@ -275,27 +296,6 @@ function send(command:string){
     console.log('minecraft-be-ban> '+command);
     spawned.stdin.write(iconv.encode(command+'\n', charset));
 }
-
-const unique = {
-    maps: new WeakMap<{new(param:any):any}, Map<any, any>>(),
-    get<PARAM, T>(cls:{new(param:PARAM):T}, param:PARAM):T
-    {
-        let list = this.maps.get(cls);
-        if (!list)
-        {
-            list = new Map;
-            this.maps.set(cls, list);
-        }
-        let obj = list.get(param);
-        if (!obj)
-        {
-            obj = new cls(param);
-            list.set(param, obj);
-        }
-        return obj;
-    }
-};
-
 
 class Command
 {
