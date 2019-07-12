@@ -3,7 +3,7 @@
         "strict": true,
         "alwaysStrict": true,
         "sourceMap": true,
-        "lib": ["esnext"],
+        "lib": ["es5"],
         "module": "commonjs",
         "newLine": "LF",
         "noImplicitThis": true

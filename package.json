@@ -1,6 +1,6 @@
 {
   "name": "minecraft-be-ban",
-  "version": "1.0.11",
+  "version": "1.0.12",
   "description": "It can ban user! Auto command writer for bedrock server",
   "main": "index.js",
   "bin": "./index.js",

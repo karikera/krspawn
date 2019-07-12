@@ -1,4 +1,7 @@
 
+### 1.0.12
+Change JavaScript version to ES5
+
 ### 1.0.11
 Reload bug fix
 Parameter bug fix
