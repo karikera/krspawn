@@ -1,7 +1,7 @@
 
 ## How it works?
 It will pipes terminal to bedrock server and watch log  
-And write kick command to kick entered player
+And write kick command to kick entered player  
 It made to target vanila Bedrock Server@1.12 but you can modify it to fit for anything  
 
 ## How can I install it?

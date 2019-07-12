@@ -658,8 +658,9 @@ async function loadTriggers():Promise<void>
     unique.clear(Compare);
     unique.clear(Command);
     Capture.clear();
-    for (const item of Object.values(predefined))
+    for (const key in predefined)
     {
+        const item = predefined[key];
         if (item.capture) unique.set(Capture, item.capture);
         if (item.compare) unique.set(Compare, item.compare);
         if (item.command) unique.set(Command, item.command);

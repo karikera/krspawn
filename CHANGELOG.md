@@ -1,4 +1,7 @@
 
+### 1.0.13
+remove Object.values call
+
 ### 1.0.12
 Change JavaScript version to ES5
 
