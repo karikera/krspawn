@@ -6,6 +6,8 @@ import os = require('os');
 import child_process = require('child_process');
 import iconv = require('iconv-lite');
 
+const TRIGGERS_TXT = 'triggers.txt';
+
 let charset = 'utf8';
 const CPMAP = new Map([
     ['949','CP949'],
@@ -17,6 +19,8 @@ const CPMAP = new Map([
 
 const isWindows = os.platform().startsWith('win32');
 let spawned:child_process.ChildProcessWithoutNullStreams;
+
+// functions
 
 function readFile(path:string):Promise<string>
 {
@@ -54,170 +58,180 @@ function exec(cmd:string):Promise<string>
     });
 }
 
-type Compare = (x:string, r:string[])=>unknown;
-function makeCompare(line:string):Compare
+class Compare
 {
-    let nextIsOperator = false;
-    let i = 0;
-    const n = line.length;
-    let parentheses = 0;
-    while (i !== n)
+    public readonly test:(x:string, r:string[])=>unknown;
+
+    constructor(line:string)
     {
-        const chr = line.charAt(i++);
-        if (chr === ' ') continue;
-        if (nextIsOperator)
+        let nextIsOperator = false;
+        let i = 0;
+        const n = line.length;
+        let parentheses = 0;
+        while (i !== n)
         {
-            if (chr === '+')
+            const chr = line.charAt(i++);
+            if (chr === ' ') continue;
+            if (nextIsOperator)
             {
-                if (line.charAt(i) === '+')
+                if (chr === '+')
                 {
-                    throw Error('Denied operator: ++');
-                }
-                nextIsOperator = false;
-            }
-            else if (chr === '-')
-            {
-                if (line.charAt(i) === '-')
-                {
-                    throw Error('Denied operator: --');
-                }
-                nextIsOperator = false;
-            }
-            else if (chr === '*')
-            {
-                if (line.charAt(i) === '*')
-                {
-                    i++;
-                }
-                nextIsOperator = false;
-            }
-            else if (chr === '/')
-            {
-                nextIsOperator = false;
-            }
-            else if (chr === '%')
-            {
-                nextIsOperator = false;
-            }
-            else if (chr === '=')
-            {
-                let nextchr = line.charAt(i++);
-                if (nextchr !== '=')
-                {
-                    throw Error('Unexpected character: '+nextchr);
-                }
-                nextchr = line.charAt(i);
-                if (nextchr === '=')
-                {
-                    i++;
-                }
-                nextIsOperator = false;
-            }
-            else if (chr === '<')
-            {
-                const nextchr = line.charAt(i++);
-                if (nextchr !== '=')
-                {
-                    throw Error('Unexpected character: '+nextchr);
-                }
-                nextIsOperator = false;
-            }
-            else if (chr === '>')
-            {
-                const nextchr = line.charAt(i++);
-                if (nextchr !== '=')
-                {
-                    throw Error('Unexpected character: '+nextchr);
-                }
-                nextIsOperator = false;
-            }
-            else if (chr === ')')
-            {
-                parentheses--;
-                if (parentheses < 0)
-                {
-                    throw Error('Unmatch parentheses');
-                }
-            }
-            else
-            {
-                throw Error('Unexpected character: '+chr);
-            }
-        }
-        else
-        {
-            if (chr === 'x')
-            {
-                nextIsOperator = true;
-            }
-            else if (chr === 't')
-            {
-                if (line.substr(i, 3) !== 'rue')
-                {
-                    throw Error('t must be true');
-                }
-                i += 3;
-                nextIsOperator = true;
-            }
-            else if (chr === 'f')
-            {
-                if (line.substr(i, 4) !== 'alse')
-                {
-                    throw Error('f must be false');
-                }
-                i += 4;
-                nextIsOperator = true;
-            }
-            else if (chr === '$')
-            {
-                const numchr = line.charCodeAt(i++);
-                if (0x30 > numchr || numchr > 0x39)
-                {
-                    throw Error(`Unexpected character: ${String.fromCharCode(numchr)}`);
-                }
-                nextIsOperator = true;
-            }
-            else if (chr === '(')
-            {
-                parentheses++;
-            }
-            else if (chr === '-')
-            {
-                if (line.charAt(i) === '-')
-                {
-                    throw Error('Denied operator: --');
-                }
-            }
-            else if (chr === '+')
-            {
-                if (line.charAt(i) === '+')
-                {
-                    throw Error('Denied operator: ++');
-                }
-            }
-            else
-            {
-                let chrcode = chr.charCodeAt(0);
-                if (0x30 <= chrcode && chrcode <= 0x39)
-                {
-                    do
+                    if (line.charAt(i) === '+')
                     {
-                        chrcode = line.charCodeAt(i++);
+                        throw Error('Denied operator: ++');
                     }
-                    while (0x30 <= chrcode && chrcode <= 0x39);
-                    nextIsOperator = true;
+                    nextIsOperator = false;
+                }
+                else if (chr === '-')
+                {
+                    if (line.charAt(i) === '-')
+                    {
+                        throw Error('Denied operator: --');
+                    }
+                    nextIsOperator = false;
+                }
+                else if (chr === '*')
+                {
+                    if (line.charAt(i) === '*')
+                    {
+                        i++;
+                    }
+                    nextIsOperator = false;
+                }
+                else if (chr === '/')
+                {
+                    nextIsOperator = false;
+                }
+                else if (chr === '%')
+                {
+                    nextIsOperator = false;
+                }
+                else if (chr === '=')
+                {
+                    let nextchr = line.charAt(i++);
+                    if (nextchr !== '=')
+                    {
+                        throw Error('Unexpected character: '+nextchr);
+                    }
+                    nextchr = line.charAt(i);
+                    if (nextchr === '=')
+                    {
+                        i++;
+                    }
+                    nextIsOperator = false;
+                }
+                else if (chr === '<')
+                {
+                    const nextchr = line.charAt(i++);
+                    if (nextchr !== '=')
+                    {
+                        throw Error('Unexpected character: '+nextchr);
+                    }
+                    nextIsOperator = false;
+                }
+                else if (chr === '>')
+                {
+                    const nextchr = line.charAt(i++);
+                    if (nextchr !== '=')
+                    {
+                        throw Error('Unexpected character: '+nextchr);
+                    }
+                    nextIsOperator = false;
+                }
+                else if (chr === ')')
+                {
+                    parentheses--;
+                    if (parentheses < 0)
+                    {
+                        throw Error('Unmatch parentheses');
+                    }
                 }
                 else
                 {
                     throw Error('Unexpected character: '+chr);
                 }
             }
+            else
+            {
+                if (chr === 'x')
+                {
+                    nextIsOperator = true;
+                }
+                else if (chr === 't')
+                {
+                    if (line.substr(i, 3) !== 'rue')
+                    {
+                        throw Error('t must be true');
+                    }
+                    i += 3;
+                    nextIsOperator = true;
+                }
+                else if (chr === 'f')
+                {
+                    if (line.substr(i, 4) !== 'alse')
+                    {
+                        throw Error('f must be false');
+                    }
+                    i += 4;
+                    nextIsOperator = true;
+                }
+                else if (chr === '$')
+                {
+                    const numchr = line.charCodeAt(i++);
+                    if (0x30 > numchr || numchr > 0x39)
+                    {
+                        throw Error(`Unexpected character: ${String.fromCharCode(numchr)}`);
+                    }
+                    nextIsOperator = true;
+                }
+                else if (chr === '(')
+                {
+                    parentheses++;
+                }
+                else if (chr === '-')
+                {
+                    if (line.charAt(i) === '-')
+                    {
+                        throw Error('Denied operator: --');
+                    }
+                }
+                else if (chr === '+')
+                {
+                    if (line.charAt(i) === '+')
+                    {
+                        throw Error('Denied operator: ++');
+                    }
+                }
+                else
+                {
+                    let chrcode = chr.charCodeAt(0);
+                    if (0x30 <= chrcode && chrcode <= 0x39)
+                    {
+                        do
+                        {
+                            chrcode = line.charCodeAt(i++);
+                        }
+                        while (0x30 <= chrcode && chrcode <= 0x39);
+                        nextIsOperator = true;
+                    }
+                    else
+                    {
+                        throw Error('Unexpected character: '+chr);
+                    }
+                }
+            }
         }
+        if (!nextIsOperator) throw Error('Ends with operator');
+    
+        this.test = <(x:string, r:string[])=>unknown>new Function('x', 'r', 'return '+line.replace(/\$([0-9])/g, 'r[$1]'));
     }
-    if (!nextIsOperator) throw Error('Ends with operator');
 
-    const func = new Function('x', 'r', 'return '+line.replace(/\$([0-9])/g, 'r[$1]'));
-    return <Compare> func;
+    static get(line:string):Compare
+    {
+        return unique.get(Compare, line);
+    }
+
+    public static readonly alwaysTrue = unique.get(Compare, 'true');
 }
 
 function makeRegExp(regexp:string):RegExp
@@ -233,24 +247,72 @@ function makeRegExp(regexp:string):RegExp
     }
 }
 
+function replaceRegExpParameters(target:string, params:string[]):string
+{
+    return target.replace(/\$([0-9])/g, (match,v)=>v === '$' ? '$' : (params[v] || v || ''));
+}
+
+function asBool(value:string):boolean
+{
+    if (value === '1' || value === 'true' || value === 't')
+    {
+        return true;
+    }
+    else if (value === '0' || value === 'false' || value === 'f')
+    {
+        return false
+    }
+    throw Error('accept true or false: '+value);
+}
+
+function spawn(command:string, args:string[]):child_process.ChildProcessWithoutNullStreams
+{
+    console.log(command+' '+args.join(' '));
+    return child_process.spawn(command, args);
+}
+
 function send(command:string){
     console.log('minecraft-be-ban> '+command);
     spawned.stdin.write(iconv.encode(command+'\n', charset));
 }
 
+const unique = {
+    maps: new WeakMap<{new(param:any):any}, Map<any, any>>(),
+    get<PARAM, T>(cls:{new(param:PARAM):T}, param:PARAM):T
+    {
+        let list = this.maps.get(cls);
+        if (!list)
+        {
+            list = new Map;
+            this.maps.set(cls, list);
+        }
+        let obj = list.get(param);
+        if (!obj)
+        {
+            obj = new cls(param);
+            list.set(param, obj);
+        }
+        return obj;
+    }
+};
+
+
 class Command
 {
-    private readonly queue:ItemRun[] = [];
+    private readonly queue:Running[] = [];
     private waiting:NodeJS.Timeout|undefined;
     private waitTo:number = 0;
-    public static readonly all:Command[] = [];
 
     constructor(public readonly command:string)
     {
-        Command.all.push(this);
     }
 
-    retry(run:ItemRun)
+    static get(line:string):Command
+    {
+        return unique.get(Command, line);
+    }
+
+    retry(run:Running)
     {
         run.runAt = Date.now() + run.item.delay;
         this.queue.push(run);
@@ -283,12 +345,11 @@ class Command
         }
     }
 
-    testAndRun(item:Item, arr:string[]):boolean
+    testAndRun(item:PropertySet, arr:string[]):boolean
     {
-        if (!item.compare(item.xuid, arr)) return false;
+        if (!item.compare.test(item.xuid, arr)) return false;
         
-        const command = this.command.replace(/\$([0-9])/g, (match,v)=>v === '$' ? '$' : (arr[v] || ''));
-        const itemrun = new ItemRun(item, command);
+        const itemrun = new Running(item, this.command, arr);
         this.queue.unshift(itemrun);
         if (this.waiting === undefined)
         {
@@ -298,87 +359,161 @@ class Command
     }
 }
 
-class Item
+class PropertySet
 {
+    public capture?:Capture;
     public delay:number = 0;
-    public compare:Compare = ()=>true;
-    public command:Command|undefined;
+    public compare:Compare = Compare.alwaysTrue;
+    public command?:Command;
     public xuid:string = '';
     public postDelay:number = 0;
-    public failDetection:RegExp|undefined;
+    public failDetection:string = '';
+    public repeatCount:number = -1;
+    public stop:boolean = false;
 
-    clone():Item
+    clone():PropertySet
     {
-        const out = new Item;
+        const out = new PropertySet;
+        out.capture = this.capture;
         out.delay = this.delay;
         out.compare = this.compare;
         out.command = this.command;
         out.xuid = this.xuid;
         out.postDelay = this.postDelay;
         out.failDetection = this.failDetection;
+        out.repeatCount = this.repeatCount;
+        out.stop = this.stop;
         return out;
     }
 }
 
-class ItemRun
+class Running
 {
     public runAt:number;
+    public readonly command:string;
+    private repeat:number;
+    private failDetection?:RegExp;
+    private static failTestings:Running[] = [];
 
     constructor(
-        public readonly item:Item,
-        public readonly command:string)
+        public readonly item:PropertySet,
+        command:string,
+        params:string[])
     {
+        this.repeat = item.repeatCount || -1;
+        this.command = replaceRegExpParameters(command, params);
         this.runAt = Date.now() + item.delay;
+        if (this.item.failDetection)
+        {
+            this.failDetection = makeRegExp(replaceRegExpParameters(this.item.failDetection, params));
+        }
     }
 
     run()
     {
+        if (this.repeat === 0) return;
+        this.repeat--;
         send(this.command);
-        if (this.item.failDetection)
+
+        if (this.repeat && this.failDetection)
         {
-            if (failTestings.length > 10) failTestings.pop();
-            failTestings.unshift(this);
+            if (Running.failTestings.length > 10) Running.failTestings.pop();
+            Running.failTestings.unshift(this);
         }
     }
 
     failTestAndRun(text:string):boolean
     {
-        if (this.item.failDetection!.test(text))
+        if (this.failDetection!.test(text))
         {
             this.item.command!.retry(this);
             return true;
         }
         return false;
     }
+
+    static failTest(out:string):boolean
+    {
+        let finded = false;
+        if (Running.failTestings.length !== 0)
+        {
+            const testing = Running.failTestings;
+            Running.failTestings = [];
+            for (let i=0;i<testing.length;)
+            {
+                if (testing[i].failTestAndRun(out))
+                {
+                    testing.splice(i, 1);
+                    finded = true;
+                    break;
+                }
+                else
+                {
+                    i++;
+                }
+            }
+            Running.failTestings.push(...testing);
+        }
+        return finded;
+    }
 }
 
 class Capture
 {
     private readonly regexp:RegExp;
-    private readonly items:Item[] = [];
-    public static all:Capture[] = [];
+    private readonly items:PropertySet[] = [];
+    private static readonly registered:Capture[] = [];
     
     constructor(line:string)
     {
-        Capture.all.push(this);
         this.regexp = makeRegExp(line);
     }
 
-    testAndRun(text:string):void
+    static get(line:string):Capture
+    {
+        return unique.get(Capture, line);
+    }
+
+    testAndRun(text:string):boolean
     {
         const arr = this.regexp.exec(text);
         if (arr)
         {
             for (const item of this.items)
             {
-                item.command!.testAndRun(item, arr);
+                if (item.command!.testAndRun(item, arr))
+                {
+                    if (item.stop) return true;
+                }
             }
         }
+        return false;
     }
 
-    addItem(item:Item):void
+    addItem(item:PropertySet):void
     {
+        if (this.items.length === 0)
+        {
+            Capture.registered.push(this);
+        }
         this.items.push(item);
+    }
+
+    static clear():void
+    {
+        for (const capture of Capture.registered)
+        {
+            capture.items.length = 0;
+        }
+        Capture.registered.length = 0;
+    }
+
+    static testAndRun(out:string):void
+    {
+        for (const capture of Capture.registered)
+        {
+            if (capture.testAndRun(out)) return;
+        }
     }
 }
 
@@ -412,16 +547,73 @@ class LineDetector
     }
 }
 
-let failTestings:ItemRun[] = [];
+// predefined property set
+const predefined:{[key:string]:PropertySet} = {
+    Ban: new PropertySet,
+    Advanture: new PropertySet,
+};
+predefined.Ban.capture = Capture.get("/] Player connected: (.+), xuid: (.+)$/");
+predefined.Ban.compare = Compare.get("x == $2");
+predefined.Ban.command = Command.get('kick "$2"');
+predefined.Ban.delay = 500;
+predefined.Ban.postDelay = 0;
+predefined.Ban.failDetection = "/^Could not find player $2$/";
+predefined.Ban.repeatCount = 10;
+predefined.Ban.stop = true;
 
+predefined.Advanture.capture = predefined.Ban.capture;
+predefined.Advanture.compare = predefined.Ban.compare;
+predefined.Advanture.command = Command.get('gamemode a "$1"');
+predefined.Advanture.delay = 2000;
+predefined.Advanture.postDelay = 2000;
+predefined.Advanture.failDetection = "/^No targets matched selector$/"; // gamemode can set after loading, Need to retry
+predefined.Advanture.repeatCount = 10;
+predefined.Advanture.stop = false;
+
+// Properties
+class Properties<OBJ extends {}>
+{
+    private readonly map = new Map<string, {
+        name:keyof OBJ,
+        cast:(value:string)=>any,
+    }>();
+
+    regist<PROP extends keyof OBJ>(name:PROP, cast:(value:string)=>OBJ[PROP]):void
+    {
+        if (typeof name === 'string')
+        {
+            const reprop = name.replace(/-./g, str=>'-'+str.charAt(1).toUpperCase());
+            this.map.set(reprop, {
+                name,
+                cast
+            });
+        }
+    }
+
+    put(target:OBJ, prop:string, value:string):void
+    {
+        const cast = this.map.get(prop);
+        if (!cast) throw Error('Unknown property: '+prop);
+        target[cast.name] = cast.cast(value);
+    }
+}
+
+const properties = new Properties<PropertySet>();
+properties.regist('capture', Capture.get);
+properties.regist('compare', Compare.get);
+properties.regist('command', Command.get);
+properties.regist('delay', value=>+value);
+properties.regist('failDetection', value=>value);
+properties.regist('repeatCount', value=>+value);
+properties.regist('stop', value=>asBool(value));
+
+// parser
 async function loadTriggers():Promise<void>
 {
-    Capture.all.length = 0;
-    Command.all.length = 0;
+    Capture.clear();
 
-    const fileName = 'triggers.txt';
-    let item = new Item;
-    let capture:Capture|undefined;
+    const fileName = TRIGGERS_TXT;
+    let item = new PropertySet;
 
     let triggers_txt:string;
     try
@@ -442,43 +634,34 @@ async function loadTriggers():Promise<void>
         line = line.trim();
         if (line === '') continue;
         
-        const labelSplit = line.indexOf(':');
         try
         {
-            if (labelSplit !== -1)
+            if (line.startsWith('<') && line.endsWith('>'))
             {
-                const label = line.substr(0, labelSplit).trim();
-                const value = line.substr(labelSplit+1).trim();
-                switch(label)
+                const name = line.substring(1, line.length-1).trim();
+                const propset = predefined[name];
+                if (propset)
                 {
-                case 'capture':
-                    capture = new Capture(value);
-                    break;
-                case 'compare':
-                    item.compare = makeCompare(value);
-                    break;
-                case 'command':
-                    item.command = new Command(value);
-                    break;
-                case 'delay':
-                    item.delay = +value;
-                    break;
-                case 'post-delay':
-                    item.postDelay = +value;
-                    break;
-                case 'fail-detection':
-                    item.failDetection = makeRegExp(value);
-                    break;
-                default:
-                    throw Error('Unknown label ignored: '+label);
+                    item = propset.clone();
+                }
+                else
+                {
+                    throw Error('Unknown Propert Set: '+name);
                 }
             }
             else
             {
-                if (capture)
+                const labelSplit = line.indexOf(':');
+                if (labelSplit !== -1)
+                {
+                    const label = line.substr(0, labelSplit).trim();
+                    const value = line.substr(labelSplit+1).trim();
+                    properties.put(item, label, value);
+                }
+                else if (item.capture)
                 {
                     item.xuid = line;
-                    capture.addItem(item);
+                    item.capture.addItem(item);
                     item = item.clone();
                 }
             }
@@ -488,12 +671,7 @@ async function loadTriggers():Promise<void>
             console.error(`minecraft-be-ban> ${fileName}(${lineNumber}): ${err.message}`);
         }
     }
-}
-
-function spawn(command:string, args:string[]):child_process.ChildProcessWithoutNullStreams
-{
-    console.log(command+' '+args.join(' '));
-    return child_process.spawn(command, args);
+    console.log('minecraft-be-ban> Triggers updated')
 }
 
 (async()=>{
@@ -522,13 +700,35 @@ function spawn(command:string, args:string[]):child_process.ChildProcessWithoutN
         if (runexec === 'check') return;
     }
 
+    
+
+    let waitLoadTrigger:NodeJS.Timeout|undefined;
+    function watchCallback(event:string):void
+    {
+        if (event === 'change')
+        {
+            if (waitLoadTrigger)
+            {
+                clearTimeout(waitLoadTrigger);
+            }
+            waitLoadTrigger = setTimeout(()=>{
+                waitLoadTrigger = undefined;
+                loadTriggers();
+            }, 300);
+        }
+        else if (event === 'rename')
+        {
+            console.log('minecraft-be-ban> detect triggers.txt renamed');
+            watcher.close();
+            watcher = fs.watch(TRIGGERS_TXT, watchCallback);
+        }
+    }
+    let watcher = fs.watch(TRIGGERS_TXT, watchCallback);
 
     const stdin = new LineDetector(command=>{
         if (command === 'update-triggers')
         {
-            loadTriggers().then(()=>{
-                console.log('minecraft-be-ban> Triggers updated')
-            });
+            loadTriggers();
         }  
         else
         {
@@ -536,29 +736,8 @@ function spawn(command:string, args:string[]):child_process.ChildProcessWithoutN
         }
     });
     const stdout = new LineDetector(out=>{
-        if (failTestings.length !== 0)
-        {
-            const testing = failTestings;
-            failTestings = [];
-            for (let i=0;i<testing.length;)
-            {
-                if (testing[i].failTestAndRun(out))
-                {
-                    testing.splice(i, 1);
-                    break;
-                }
-                else
-                {
-                    i++;
-                }
-            }
-            failTestings.push(...testing);
-        }
-
-        for (const capture of Capture.all)
-        {
-            capture.testAndRun(out);
-        }
+        if (Running.failTest(out)) return;
+        Capture.testAndRun(out);
     });
     function onstdin(chunk:Buffer):void
     {
@@ -567,18 +746,19 @@ function spawn(command:string, args:string[]):child_process.ChildProcessWithoutN
     process.stdin.on('error', ()=>{});
     process.stdin.on('data', onstdin);
     spawned.on('close', ()=>{
+        watcher.close();
         process.stdin.removeListener('data', onstdin);
         process.stdin.end();
     });
     spawned.stdout.on('data', chunk=>{
         const text = iconv.decode(chunk, charset);
-        stdout.add(text);
         process.stdout.write(text);
+        stdout.add(text);
     });
     spawned.stderr.on('data', chunk=>{
         const text = iconv.decode(chunk, charset);
-        stdout.add(text);
         process.stderr.write(text);
+        stdout.add(text);
     });
 
 })().catch(err=>console.error(err));

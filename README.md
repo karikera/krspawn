@@ -22,6 +22,6 @@ Discord: https://discord.gg/uBA4eSz
 My mothertongue is korean, My english is bad ´ㅡ`  
 
 ## Commands
-* `minecraft-be-ban init`: It will copies and validates `triggers.txt`
+* `minecraft-be-ban check`: It will copies and validates `triggers.txt`
 * `minecraft-be-ban`: It will runs `./bedrock_server`
 * `minecraft-be-ban [commands]`: It will runs `[commands]`

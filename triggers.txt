@@ -1,49 +1,55 @@
-// Double slash is comment. Right of double slash is just explanations.
-// You can update triggers to use 'update-triggers' command in server console
-// Capture syntax is Regular Expression. If you want to learn it you can search about javascript regular expressions.
 
-
-//   <Ban>
-capture: /] Player connected: (.+), xuid: (.+)$/
-delay: 500 // wait 500ms before run command 
-compare: x == $2  // x = XUID
-command: kick "$2"
+<Ban>
 // XUID List
 0000000000000000 // dummy
 1111111111111111 // dummy2   You can write multiple xuid
 
 
-//   <Set Advanture mode>
-// if not define property, it always use previous defination
-// capture and compare are same with <Ban>
-delay: 1000
-post-delay: 1000 // wait 1000ms after run command, it is need for fail detection
-fail-detection: /^No targets matched selector$/    // gamemode can set after loading, Need to retry
-command: gamemode a $1
+<Advanture>
 // XUID List
 // ...
 
 
-//   <Kick again if failed>
-capture: /^Could not find player (.+)$/
-delay: 500 // wait 500ms before run command 
-post-delay: 0 // need to reset
-compare: true
-command: kick "$1"
-whatever // compare is always true, so it is always pass and always run command
 
 
+// Double slash is comment. Right of double slash is just explanations.
+// You can update triggers to use 'update-triggers' command in server console
+// Capture syntax is Regular Expression. If you want to learn it you can search about javascript regular expressions.
 
-//   <Template>
+// // <Template>
+// // if skip property, it always use previous defination
 // capture: /Regular expression/
-// delay: 0  // default = 0
-// post-delay: 0 // default = 0
+// delay: [number]  // default = 0, wait [number]ms before run command 
+// post-delay: [number] // default = 0, wait [number]ms after run command, it is need for fail detection
 // compare: mathematical expressions // it will uses javascript operations
 //     // variables can be used
 //     // x = [XUID or whatever your writed in bottom]
 //     // $[0-9] = regular expression capture
 //     // ex) x == $1
+// fail-detection: /Regular expression/  // Repeat command if this message detected
+// repeat-count: [number] // default = -1(infinite), it limits fail detection repeat count
+// stop: [boolean] // default = false, do not execute other commands for this log
 // [XUID]
 // [XUID]
 // [XUID]
 // ...
+//
+
+
+// // <Predefined propertiy set : Ban>
+// capture: /] Player connected: (.+), xuid: (.+)$/
+// compare: x == $2  // x = XUID
+// command: kick "$2"
+// delay: 500 
+// post-delay: 0
+// fail-detection: /^Could not find player $2$/
+// repeat-count: 10
+// stop: true
+
+// // <Predefined property set : Advanture>
+// [capture,compare,repeat-count] are same with <Ban>
+// command: gamemode a "$1"
+// delay: 2000
+// post-delay: 2000 
+// fail-detection: /^No targets matched selector$/    // gamemode can set after loading, Need to retry
+// stop: false

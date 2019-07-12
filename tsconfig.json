@@ -5,6 +5,7 @@
         "sourceMap": true,
         "lib": ["esnext"],
         "module": "commonjs",
-        "newLine": "LF"
+        "newLine": "LF",
+        "noImplicitThis": true
     }
 }
