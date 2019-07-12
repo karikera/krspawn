@@ -1,12 +1,13 @@
 
 ## How it works?
 It will pipes terminal to bedrock server and watch log  
-It made to target vanila Bedrock Server but you can modify it to fit for anything  
+And write kick command to kick entered player
+It made to target vanila Bedrock Server@1.12 but you can modify it to fit for anything  
 
 ## How can I install it?
 it is NPM based module  
 First, You need to install node.js  
-And you can install it with `npm install -g minecraft-be-ban` command from console
+And you can install this with `npm install -g minecraft-be-ban` command from console
 
 ## How can I run it?
 1. Move to Bedrock Server directory
