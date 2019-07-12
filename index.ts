@@ -60,14 +60,28 @@ function exec(cmd:string):Promise<string>
 
 const unique = {
     maps: new WeakMap<{new(param:any):any}, Map<any, any>>(),
-    get<PARAM, T>(cls:{new(param:PARAM):T}, param:PARAM):T
+    clear<PARAM, T>(cls:{new(param:PARAM):T}):void
     {
-        let list = this.maps.get(cls);
+        unique.maps.delete(cls);
+    },
+    getMap<PARAM, T>(cls:{new(param:PARAM):T}):Map<PARAM, T>
+    {
+        let list = unique.maps.get(cls);
         if (!list)
         {
             list = new Map;
-            this.maps.set(cls, list);
+            unique.maps.set(cls, list);
         }
+        return list;
+    },
+    set<PARAM, T extends {line:PARAM}>(cls:{new(param:PARAM):T}, value:T):void
+    {
+        const list = unique.getMap(cls);
+        list.set(value.line, value);
+    },
+    get<PARAM, T>(cls:{new(param:PARAM):T}, param:PARAM):T
+    {
+        const list = unique.getMap(cls);
         let obj = list.get(param);
         if (!obj)
         {
@@ -79,11 +93,18 @@ const unique = {
 };
 
 
+type CompareFunc = (x:string, r:string[])=>unknown;
+
 class Compare
 {
-    public readonly test:(x:string, r:string[])=>unknown;
+    public readonly test:CompareFunc;
 
-    constructor(line:string)
+    constructor(public readonly line:string)
+    {
+        this.test = Compare.make(line);
+    }
+
+    static validate(line:string):void
     {
         let nextIsOperator = false;
         let i = 0;
@@ -243,16 +264,19 @@ class Compare
             }
         }
         if (!nextIsOperator) throw Error('Ends with operator');
-    
-        this.test = <(x:string, r:string[])=>unknown>new Function('x', 'r', 'return '+line.replace(/\$([0-9])/g, 'r[$1]'));
+    }
+
+    static make(line:string):CompareFunc
+    {
+        line = line.trim();
+        Compare.validate(line);
+        return <CompareFunc>new Function('x', 'r', 'return '+line.replace(/\$([0-9])/g, 'r[$1]'));
     }
 
     static get(line:string):Compare
     {
         return unique.get(Compare, line);
     }
-
-    public static readonly alwaysTrue = unique.get(Compare, 'true');
 }
 
 function makeRegExp(regexp:string):RegExp
@@ -293,7 +317,10 @@ function spawn(command:string, args:string[]):child_process.ChildProcessWithoutN
 }
 
 function send(command:string){
-    console.log('minecraft-be-ban> '+command);
+    for (const cmd of command.split('\n'))
+    {
+        console.log('minecraft-be-ban> '+cmd);
+    }
     spawned.stdin.write(iconv.encode(command+'\n', charset));
 }
 
@@ -303,7 +330,7 @@ class Command
     private waiting:NodeJS.Timeout|undefined;
     private waitTo:number = 0;
 
-    constructor(public readonly command:string)
+    constructor(public readonly line:string)
     {
     }
 
@@ -347,9 +374,12 @@ class Command
 
     testAndRun(item:PropertySet, arr:string[]):boolean
     {
-        if (!item.compare.test(item.xuid, arr)) return false;
+        if (item.compare)
+        {
+            if (!item.compare.test(item.xuid, arr)) return false;
+        }
         
-        const itemrun = new Running(item, this.command, arr);
+        const itemrun = new Running(item, this.line, arr);
         this.queue.unshift(itemrun);
         if (this.waiting === undefined)
         {
@@ -363,7 +393,7 @@ class PropertySet
 {
     public capture?:Capture;
     public delay:number = 0;
-    public compare:Compare = Compare.alwaysTrue;
+    public compare?:Compare;
     public command?:Command;
     public xuid:string = '';
     public postDelay:number = 0;
@@ -464,7 +494,7 @@ class Capture
     private readonly items:PropertySet[] = [];
     private static readonly registered:Capture[] = [];
     
-    constructor(line:string)
+    constructor(public readonly line:string)
     {
         this.regexp = makeRegExp(line);
     }
@@ -576,41 +606,64 @@ class Properties<OBJ extends {}>
     private readonly map = new Map<string, {
         name:keyof OBJ,
         cast:(value:string)=>any,
+        add?:(orivalue:any, value:any)=>any,
     }>();
 
-    regist<PROP extends keyof OBJ>(name:PROP, cast:(value:string)=>OBJ[PROP]):void
+    regist<PROP extends keyof OBJ>(name:PROP, cast:(value:string)=>OBJ[PROP], add?:(orivalue:OBJ[PROP], value:string)=>OBJ[PROP]):void
     {
         if (typeof name === 'string')
         {
-            const reprop = name.replace(/-./g, str=>'-'+str.charAt(1).toUpperCase());
+            const reprop = name.replace(/[A-Z]/g, str=>'-'+str.toLocaleLowerCase());
             this.map.set(reprop, {
                 name,
-                cast
+                cast,
+                add
             });
         }
     }
 
     put(target:OBJ, prop:string, value:string):void
     {
-        const cast = this.map.get(prop);
-        if (!cast) throw Error('Unknown property: '+prop);
-        target[cast.name] = cast.cast(value);
+        if (prop.endsWith('+'))
+        {
+            prop = prop.substr(0, prop.length-1).trim();
+            const cast = this.map.get(prop);
+            if (!cast) throw Error('Unknown property: '+prop);
+            if (!cast.add) throw Error('un-addable property: '+prop);
+            target[cast.name] = cast.add(target[cast.name], value);
+        }
+        else
+        {
+            const cast = this.map.get(prop);
+            if (!cast) throw Error('Unknown property: '+prop);
+            target[cast.name] = cast.cast(value);
+        }
     }
 }
 
 const properties = new Properties<PropertySet>();
 properties.regist('capture', Capture.get);
-properties.regist('compare', Compare.get);
-properties.regist('command', Command.get);
-properties.regist('delay', value=>+value);
-properties.regist('failDetection', value=>value);
-properties.regist('repeatCount', value=>+value);
+properties.regist('compare', Compare.get, (ori, value)=>Compare.get(ori ? `(${ori.line})&&(${value})` : value));
+properties.regist('command', Command.get, (ori, value)=>Command.get(ori ? ori.line+'\n'+value : value));
+properties.regist('delay', value=>+value, (ori, value)=>ori+(+value));
+properties.regist('postDelay', value=>+value, (ori, value)=>ori+(+value));
+properties.regist('failDetection', value=>value, (ori, value)=>ori+(+value));
+properties.regist('repeatCount', value=>+value, (ori, value)=>ori+(+value));
 properties.regist('stop', value=>asBool(value));
 
 // parser
 async function loadTriggers():Promise<void>
 {
+    unique.clear(Capture);
+    unique.clear(Compare);
+    unique.clear(Command);
     Capture.clear();
+    for (const item of Object.values(predefined))
+    {
+        if (item.capture) unique.set(Capture, item.capture);
+        if (item.compare) unique.set(Compare, item.compare);
+        if (item.command) unique.set(Command, item.command);
+    }
 
     const fileName = TRIGGERS_TXT;
     let item = new PropertySet;

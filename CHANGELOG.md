@@ -1,4 +1,10 @@
 
+### 1.0.11
+Reload bug fix
+Parameter bug fix
+Add + syntax for multiple commands
+Update README
+
 ### 1.0.10
 fix kick repeating when kick is failed
 Add predefined to simplify triggers.txt

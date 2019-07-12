@@ -1,21 +1,25 @@
+// Double slash is comment. Right of double slash is just explanations.
 
+
+// Ban Players
 <Ban>
 // XUID List
 0000000000000000 // dummy
-1111111111111111 // dummy2   You can write multiple xuid
+1111111111111111 // dummy2
+2222222222222222 // dummy3 ...
 
-
+// Set Advanture mode Players
 <Advanture>
 // XUID List
-// ...
+// ... same as <Ban> ...
 
 
-
-
-// Double slash is comment. Right of double slash is just explanations.
+///////////////////////////////////////////////
+/////// Comments
+//
 // You can update triggers to use 'update-triggers' command in server console
 // Capture syntax is Regular Expression. If you want to learn it you can search about javascript regular expressions.
-
+//
 // // <Template>
 // // if skip property, it always use previous defination
 // capture: /Regular expression/
@@ -26,6 +30,8 @@
 //     // x = [XUID or whatever your writed in bottom]
 //     // $[0-9] = regular expression capture
 //     // ex) x == $1
+// command: minecraft server command
+// command+: add extra command
 // fail-detection: /Regular expression/  // Repeat command if this message detected
 // repeat-count: [number] // default = -1(infinite), it limits fail detection repeat count
 // stop: [boolean] // default = false, do not execute other commands for this log
@@ -34,22 +40,24 @@
 // [XUID]
 // ...
 //
-
-
-// // <Predefined propertiy set : Ban>
+//
+// // Predefined property sets
+// // <Ban>
+// // You can write these properties instead of <Ban> and you can modify it!
 // capture: /] Player connected: (.+), xuid: (.+)$/
 // compare: x == $2  // x = XUID
-// command: kick "$2"
+// command: kick "$2" 
 // delay: 500 
 // post-delay: 0
 // fail-detection: /^Could not find player $2$/
 // repeat-count: 10
 // stop: true
-
-// // <Predefined property set : Advanture>
+//
+// // <Advanture>
 // [capture,compare,repeat-count] are same with <Ban>
 // command: gamemode a "$1"
 // delay: 2000
 // post-delay: 2000 
 // fail-detection: /^No targets matched selector$/    // gamemode can set after loading, Need to retry
 // stop: false
+//
