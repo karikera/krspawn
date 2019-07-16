@@ -1,28 +1,35 @@
 
-## How it works?
-It will pipes terminal to bedrock server and watch log  
-And write kick command to kick entered player  
-It made to target vanila Bedrock Server@1.12 but you can modify it to fit for anything  
+## What is this?
+It's just terminal piping library  
 
-## How can I install it?
-it is NPM based module  
-install [node.js](https://nodejs.org/) if NPM is not installed
-run `npm install -g minecraft-be-ban` command from console
+```ts
+// TypeScript
 
-## How can I run it?
-1. Open Bedrock Server directory with console
-2. Initialize with `minecraft-be-ban check` command
-    It will copys `triggers.txt` to working directory
-3. Modify `triggers.txt` to ban some XUIDs
-4. Run `minecraft-be-ban`. it will run `./bedrock_server`
-    If you use linux then you can run with `LD_LIBRARY_PATH=. minecraft-be-ban`
+import { ConsolePipe } from 'krpipe';
+const server = new ConsolePipe('./bedrock_server');
+server.on('open', ()=>{
 
-## Help
-Question or Report: https://github.com/karikera/minecraft-be-ban/issues  
-Discord: https://discord.gg/uBA4eSz  
-My mothertongue is korean, My english is bad ´ㅡ`  
+    server.on('stdin', command=>{
+        switch (command)
+        {
+        case 'aaaa':
+            console.log('command AAAA!');
+            break;
+        case 'bbbb':
+            console.log('command BBBB!');
+            break;
+        default:
+            server.stdout(server.command);
+            break;
+        }
+    });
 
-## Commands
-* `minecraft-be-ban check`: It will copies and validates `triggers.txt`
-* `minecraft-be-ban`: It will runs `./bedrock_server`
-* `minecraft-be-ban [commands]`: It will runs `[commands]`
+    server.on('stdout', message=>{
+        if (message.endsWith('Server Started.'))
+        {
+            console.log('And Piped.');
+        }
+    });
+});
+
+```

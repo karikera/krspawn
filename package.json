@@ -1,6 +1,6 @@
 {
-  "name": "minecraft-be-pipe",
-  "version": "1.0.14",
+  "name": "krpipe",
+  "version": "1.0.0",
   "description": "Terminal pipe for Minecraft Bedrock Dedicated Server",
   "main": "index.js",
   "bin": "./index.js",
@@ -9,7 +9,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/karikera/minecraft-be-pipe"
+    "url": "https://github.com/karikera/krpipe"
   },
   "devDependencies": {
     "@types/node": "^12.6.3"
@@ -17,10 +17,7 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": [
-    "minecraft",
-    "minecraft-be"
-  ],
+  "keywords": [],
   "author": "karikera",
   "license": "ISC"
 }

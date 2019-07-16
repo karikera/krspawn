@@ -1,5 +1,4 @@
 
-import path = require('path');
 import os = require('os');
 import child_process = require('child_process');
 import iconv = require('iconv-lite');
@@ -75,15 +74,11 @@ class LineDetector
     }
 }
 
-interface Args
+export interface ConsolePipe
 {
-}
-
-export interface MinecraftServer
-{
-    addListener(event: 'stdout', listener: (command: string) => void): this;
-    on(event: 'stdout', listener: (command: string) => void): this;
-    emit(event: 'stdout', command:string): boolean;
+    addListener(event: 'stdout', listener: (message: string) => void): this;
+    on(event: 'stdout', listener: (message: string) => void): this;
+    emit(event: 'stdout', message:string): boolean;
 
     addListener(event: 'stdin', listener: (command: string) => void): this;
     on(event: 'stdin', listener: (command: string) => void): this;
@@ -92,84 +87,81 @@ export interface MinecraftServer
     addListener(event: 'close', listener: () => void): this;
     on(event: 'close', listener: () => void): this;
     emit(event: 'close'): boolean;
+    
+    addListener(event: 'open', listener: () => void): this;
+    on(event: 'open', listener: () => void): this;
+    emit(event: 'open'): boolean;
 }
 
-export class MinecraftServer extends EventEmitter
+export class ConsolePipe extends EventEmitter
 {
     private spawned?:child_process.ChildProcessWithoutNullStreams;
 
-    constructor(args?:Args)
-    {
-        super();
-        if (args)
-        {
-        }
-    }
-
-    command(command:string):void
+    stdout(message:string):void
     {
         if (!this.spawned)
         {
             console.error('Not running');
             return;
         }
-        this.spawned.stdin.write(iconv.encode(command+'\n', charset));
+        this.spawned.stdin.write(iconv.encode(message+'\n', charset));
     }
 
-    async run(command:string|null|undefined, args?:string[]):Promise<void>
+    constructor(command:string, args?:string[])
     {
-        if (!command)
-        {
-            command = '.' + path.sep + 'bedrock_server';
-        }
-        const isWindows = os.platform().startsWith('win32');        
-        if (isWindows)
-        {
-            const cp = await exec('chcp');
-            const s = cp.indexOf(':') + 1; 
-            const e = cp.indexOf('\n', s)-1;
-            const codepage = cp.substring(s, e).trim();
-            charset = CPMAP.get(codepage) || 'utf8';
-            let nargs = ['/s', '/c', command];
-            if (args) nargs = nargs.concat(args);
-            this.spawned = spawn('cmd', nargs);
-        }
-        else
-        {
-            this.spawned = spawn(command, args);
-        }
+        super();
 
-        const stdin = new LineDetector(command=>{
-            if (!this.emit('stdin', command))
+        (async()=>{
+            const isWindows = os.platform().startsWith('win32');        
+            if (isWindows)
             {
-                this.command(command);
+                const cp = await exec('chcp');
+                const s = cp.indexOf(':') + 1; 
+                const e = cp.indexOf('\n', s)-1;
+                const codepage = cp.substring(s, e).trim();
+                charset = CPMAP.get(codepage) || 'utf8';
+                let nargs = ['/s', '/c', command];
+                if (args) nargs = nargs.concat(args);
+                this.spawned = spawn('cmd', nargs);
             }
-        });
-        const stdout = new LineDetector(out=>{
-            this.emit('stdout', out);
-        });
-        function onstdin(chunk:Buffer):void
-        {
-            stdin.add(chunk.toString('utf8'));
-        }
-        process.stdin.on('error', ()=>{});
-        process.stdin.on('data', onstdin);
-        this.spawned.on('close', ()=>{
-            process.stdin.removeListener('data', onstdin);
-            process.stdin.end();
-            this.emit('close');
-        });
-        this.spawned.stdout.on('data', chunk=>{
-            const text = iconv.decode(chunk, charset);
-            process.stdout.write(text);
-            stdout.add(text);
-        });
-        this.spawned.stderr.on('data', chunk=>{
-            const text = iconv.decode(chunk, charset);
-            process.stderr.write(text);
-            stdout.add(text);
-        });
+            else
+            {
+                this.spawned = spawn(command, args);
+                await new Promise(resolve=>{ setTimeout(resolve, 0); }); // sync with windows
+            }
 
+            const stdin = new LineDetector(command=>{
+                if (!this.emit('stdin', command))
+                {
+                    this.stdout(command);
+                }
+            });
+            const stdout = new LineDetector(out=>{
+                this.emit('stdout', out);
+            });
+            function onstdin(chunk:Buffer):void
+            {
+                stdin.add(chunk.toString('utf8'));
+            }
+            process.stdin.on('error', ()=>{});
+            process.stdin.on('data', onstdin);
+            this.spawned.on('close', ()=>{
+                process.stdin.removeListener('data', onstdin);
+                process.stdin.end();
+                this.emit('close');
+            });
+            this.spawned.stdout.on('data', chunk=>{
+                const text = iconv.decode(chunk, charset);
+                process.stdout.write(text);
+                stdout.add(text);
+            });
+            this.spawned.stderr.on('data', chunk=>{
+                const text = iconv.decode(chunk, charset);
+                process.stderr.write(text);
+                stdout.add(text);
+            });
+            this.emit('open');
+        })();
     }
-
 }
+
