@@ -6,7 +6,6 @@ import { EventEmitter } from 'events';
 
 let charset = 'utf8';
 const CPMAP = new Map([
-    ['949','CP949'],
     ['932','CP932'],
     ['936','CP936'],
     ['949','CP949'],
@@ -74,15 +73,15 @@ class LineDetector
     }
 }
 
-export interface ConsolePipe
+export interface Spawn
 {
     addListener(event: 'stdout', listener: (message: string) => void): this;
     on(event: 'stdout', listener: (message: string) => void): this;
     emit(event: 'stdout', message:string): boolean;
 
-    addListener(event: 'stdin', listener: (command: string) => void): this;
-    on(event: 'stdin', listener: (command: string) => void): this;
-    emit(event: 'stdin', command:string): boolean;
+    addListener(event: 'stdin', listener: (message: string) => void): this;
+    on(event: 'stdin', listener: (message: string) => void): this;
+    emit(event: 'stdin', message:string): boolean;
     
     addListener(event: 'close', listener: () => void): this;
     on(event: 'close', listener: () => void): this;
@@ -93,7 +92,7 @@ export interface ConsolePipe
     emit(event: 'open'): boolean;
 }
 
-export class ConsolePipe extends EventEmitter
+export class Spawn extends EventEmitter
 {
     private spawned?:child_process.ChildProcessWithoutNullStreams;
 
@@ -110,7 +109,6 @@ export class ConsolePipe extends EventEmitter
     constructor(command:string, args?:string[])
     {
         super();
-
         (async()=>{
             const isWindows = os.platform().startsWith('win32');        
             if (isWindows)
@@ -120,7 +118,8 @@ export class ConsolePipe extends EventEmitter
                 const e = cp.indexOf('\n', s)-1;
                 const codepage = cp.substring(s, e).trim();
                 charset = CPMAP.get(codepage) || 'utf8';
-                let nargs = ['/s', '/c', command];
+                command = command.replace(/\//g, '\\');
+                let nargs = ['/s', '/c', command]; // for call global binary
                 if (args) nargs = nargs.concat(args);
                 this.spawned = spawn('cmd', nargs);
             }

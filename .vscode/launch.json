@@ -8,7 +8,7 @@
             "type": "node",
             "request": "launch",
             "name": "Launch Program",
-            "program": "${workspaceFolder}\\index.js",
+            "program": "${workspaceFolder}\\test\\test.js",
             "cwd": "D:\\Downloads\\bedrock-server-1.12.0.28",
             "outFiles": [
                 "${workspaceFolder}/**/*.js"

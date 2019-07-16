@@ -1,12 +1,4 @@
 
-## What is this?
-Spawn & Line Spliting
-Support 932, 936, 949, 950 codepages for Windows
-
-```ts
-// TypeScript
-
-// Example for Minecraft bedrock server
 import { Spawn } from '../index';
 
 const server = new Spawn('./bedrock_server'); 
@@ -37,4 +29,4 @@ server.on('stdout', message=>{
     }
 });
 
-```
+
