@@ -1,18 +1,19 @@
 {
-  "name": "minecraft-be-ban",
-  "version": "1.0.13",
-  "description": "It can ban user! Auto command writer for bedrock server",
+  "name": "minecraft-be-pipe",
+  "version": "1.0.14",
+  "description": "Terminal pipe for Minecraft Bedrock Dedicated Server",
   "main": "index.js",
   "bin": "./index.js",
   "dependencies": {
-    "@types/node": "^12.6.2",
     "iconv-lite": "^0.5.0"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/karikera/minecraft-be-ban"
+    "url": "https://github.com/karikera/minecraft-be-pipe"
   },
-  "devDependencies": {},
+  "devDependencies": {
+    "@types/node": "^12.6.3"
+  },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
