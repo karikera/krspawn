@@ -1,7 +1,7 @@
 
 ## What is this?
-Spawn & Line Spliting
-Support 932, 936, 949, 950 codepages for Windows
+Spawn & Line Spliting  
+Support 932, 936, 949, 950 codepages for Windows  
 
 ```ts
 // TypeScript
