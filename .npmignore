@@ -1,6 +1,7 @@
 /test
-/index.ts
-/index.js.map
 /.vscode
 /.gitignore
 /tsconfig.json
+*.js.map
+*.ts
+!*.d.ts
