@@ -96,7 +96,7 @@ export class Spawn extends EventEmitter
 {
     private spawned?:child_process.ChildProcessWithoutNullStreams;
 
-    stdout(message:string):void
+    stdin(message:string):void
     {
         if (!this.spawned)
         {
@@ -132,11 +132,14 @@ export class Spawn extends EventEmitter
             const stdin = new LineDetector(command=>{
                 if (!this.emit('stdin', command))
                 {
-                    this.stdout(command);
+                    this.stdin(command);
                 }
             });
             const stdout = new LineDetector(out=>{
-                this.emit('stdout', out);
+                if (!this.emit('stdout', out))
+                {
+                    console.log(out);
+                }
             });
             function onstdin(chunk:Buffer):void
             {
@@ -151,13 +154,11 @@ export class Spawn extends EventEmitter
             });
             this.spawned.stdout.on('data', chunk=>{
                 const text = iconv.decode(chunk, charset);
-                process.stdout.write(text);
                 stdout.add(text);
             });
             this.spawned.stderr.on('data', chunk=>{
                 const text = iconv.decode(chunk, charset);
                 process.stderr.write(text);
-                stdout.add(text);
             });
             this.emit('open');
         })();

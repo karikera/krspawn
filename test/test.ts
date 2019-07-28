@@ -18,11 +18,12 @@ server.on('stdin', command=>{
         console.log('command BBBB!');
         break;
     default:
-        server.stdout(command);
+        server.stdin(command);
         break;
     }
 });
 server.on('stdout', message=>{
+    console.log(message);
     if (message.endsWith('Server started.'))
     {
         console.log('And Piped.');

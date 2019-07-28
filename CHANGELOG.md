@@ -1,6 +1,10 @@
 
+### 1.0.2
+* change .stdout() to .stdin()
+* do not print stdout if event attached
+
 ### 1.0.1
-Publish d.ts
+* Publish d.ts
 
 ### 1.0.0
-Split from minecraft-be-ban
+* Splited from minecraft-be-ban
