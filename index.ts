@@ -67,7 +67,6 @@ class LineDetector
 
     add(text:string):void
     {
-        
         let idx = 0;
         for (;;)
         {
@@ -83,7 +82,7 @@ class LineDetector
             }
             else
             {
-                this.buffer += text;
+                this.buffer += text.substr(idx);
                 break;
             }
         }
