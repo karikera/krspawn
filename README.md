@@ -6,18 +6,27 @@ Support 932, 936, 949, 950 codepages for Windows
 ```ts
 // TypeScript
 
-// Example for Minecraft bedrock server
-import { Spawn } from '../index';
+import { Spawn, StdInListener } from '../index';
 
-const server = new Spawn('./bedrock_server'); 
-server.on('open', ()=>{
-    console.log('opened');
-});
-server.on('close', ()=>{
-    console.log('closed');
-});
-server.on('stdin', command=>{
-    switch (command)
+function spawn():Spawn
+{
+    const cmd = new Spawn('cmd'); 
+    cmd.on('open', ()=>{
+        console.log('opened');
+    });
+    cmd.on('close', ()=>{
+        console.log('closed');
+    });
+    cmd.on('stdout', message=>{
+        console.log(message);
+    });
+    return cmd;
+}
+
+let cmd = spawn();
+
+const stdinListener = new StdInListener(line=>{
+    switch (line)
     {
     case 'aaaa':
         console.log('command AAAA!');
@@ -25,17 +34,28 @@ server.on('stdin', command=>{
     case 'bbbb':
         console.log('command BBBB!');
         break;
+    case 'restart':
+        cmd.stdin('exit');
+        cmd.on('close', ()=>{
+            cmd = spawn();
+        });
+        break;
+    case 'exit':
+        cmd.stdin('exit');
+        cmd.on('close', ()=>{
+            stdinListener.remove();
+        });
+        break;
     default:
-        server.stdin(command);
+        cmd.stdin(line);
         break;
     }
 });
-server.on('stdout', message=>{
-    console.log(message);
-    if (message.endsWith('Server started.'))
-    {
-        console.log('And Piped.');
-    }
-});
+
+setInterval(()=>{
+    stdinListener.clearLine();
+    console.log('disturb message');
+    stdinListener.restore();
+},5000);
 
 ```
