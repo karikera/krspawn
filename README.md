@@ -6,7 +6,7 @@ Support 932, 936, 949, 950 codepages for Windows
 ```ts
 // TypeScript
 
-import { Spawn, StdInListener } from '../index';
+import { Spawn, StdInListener } from 'krspawn';
 
 function spawn():Spawn
 {
@@ -44,6 +44,7 @@ const stdinListener = new StdInListener(line=>{
         cmd.stdin('exit');
         cmd.on('close', ()=>{
             stdinListener.remove();
+            clearInterval(interval);
         });
         break;
     default:
@@ -52,10 +53,8 @@ const stdinListener = new StdInListener(line=>{
     }
 });
 
-setInterval(()=>{
-    stdinListener.clearLine();
+const interval = setInterval(()=>{
     console.log('disturb message');
-    stdinListener.restore();
-},5000);
+},1000);
 
 ```

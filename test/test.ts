@@ -48,4 +48,4 @@ const stdinListener = new StdInListener(line=>{
 
 const interval = setInterval(()=>{
     console.log('disturb message');
-},5000);
+},1000);

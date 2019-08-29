@@ -67,34 +67,23 @@ class LineDetector
 
     add(text:string):void
     {
-        for (let i=0;i<text.length;i++)
+        
+        let idx = 0;
+        for (;;)
         {
-            const chr = text.charAt(i);
-            switch (chr)
+            let cmdend = text.indexOf('\n', idx);
+            if (cmdend !== -1)
             {
-            case '\r':
-                this.breaked = true;
+                const next = cmdend+1;
+                if (text.charAt(cmdend-1) === '\r') cmdend--;
+                this.buffer += text.substring(idx, cmdend);
                 this.callback(this.buffer);
+                idx = next;
                 this.buffer = '';
-                break;
-            case '\b':
-                this.breaked = false;
-                this.buffer = this.buffer.substr(0, this.buffer.length-1);
-                break;
-            case '\n':
-                if (this.breaked)
-                {
-                    this.breaked = false;
-                }
-                else
-                {
-                    this.callback(this.buffer);
-                    this.buffer = '';
-                }
-                break;
-            default:
-                this.breaked = false;
-                this.buffer += chr;
+            }
+            else
+            {
+                this.buffer += text;
                 break;
             }
         }
@@ -123,17 +112,18 @@ export interface Spawn
 
 const emptyFunc = ()=>{};
 
-export class StdInListener extends LineDetector
+export class StdInListener
 {
-
     private restoreRequest:NodeJS.Timeout|null = null;
-
+    private buffer:string = '';
+    private removed = false;
+    private readonly oldlog:(this:Console, message?:any, ...params:any[])=>void;
     private readonly onstdin = (key:string)=>{
         if (this.restoreRequest)
         {
             clearTimeout(this.restoreRequest);
             this.restoreRequest = null;
-            stdout.write(this.getBuffer());
+            stdout.write(this.buffer);
         }
         if ( key === '\u0003' ) {
             for (const child of children)
@@ -145,18 +135,27 @@ export class StdInListener extends LineDetector
         else
         {
             stdout.write(key);
-            if (key === '\b')
+            switch (key)
             {
+            case '\r':
+                this.listener(this.buffer);
+                this.buffer = '';
+                stdout.write('\n');
+                break;
+            case '\b':
                 stdout.write(' ');
                 stdout.write('\b');
+                this.buffer = this.buffer.substr(0, this.buffer.length-1);
+                break;
+            default:
+                this.buffer += key;
+                break;
             }
-            this.add(key);
         }
     };
 
-    constructor(listener:(data:string)=>void)
+    constructor(private readonly listener:(data:string)=>void)
     {
-        super(listener);
         stdin.setRawMode(true);
         stdin.resume();
         stdin.setEncoding('utf8');
@@ -164,9 +163,9 @@ export class StdInListener extends LineDetector
         stdin.on('data', this.onstdin);
         
         const that = this;
-        const oldlog = console.log;
+        this.oldlog = console.log;
         console.log = function(message?:any, ...params:any[]){
-            if (that.getBuffer() !== '')
+            if (that.buffer !== '')
             {
                 if (that.restoreRequest)
                 {
@@ -174,16 +173,16 @@ export class StdInListener extends LineDetector
                 }
                 that.restoreRequest = setTimeout(()=>{
                     that.restoreRequest = null;
-                    stdout.write(that.getBuffer());
+                    stdout.write(that.buffer);
                 }, 100);
 
                 stdout.write('\r');
                 stdout.clearLine();
-                oldlog.apply(this, arguments as any);
+                that.oldlog.apply(this, arguments as any);
             }
             else
             {
-                oldlog.apply(this, arguments as any);
+                that.oldlog.apply(this, arguments as any);
             }
         };
 
@@ -191,10 +190,13 @@ export class StdInListener extends LineDetector
 
     remove():void
     {
+        if (this.removed) return;
+        this.removed = true;
         stdin.removeListener('error', emptyFunc);
         stdin.removeListener('data', this.onstdin);
         stdin.pause();
         stdin.setRawMode(false);
+        console.log = this.oldlog;
     }
 }
 
