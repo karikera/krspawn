@@ -193,7 +193,8 @@ export class StdInListener extends LineDetector
     {
         stdin.removeListener('error', emptyFunc);
         stdin.removeListener('data', this.onstdin);
-        stdin.end();
+        stdin.pause();
+        stdin.setRawMode(false);
     }
 }
 

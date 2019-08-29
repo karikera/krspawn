@@ -1,3 +1,6 @@
+### 2.0.1
+* bugfix
+
 ### 2.0.0
 * remove stdin event and add StdInListener
 * override stdout to avoid stdin disturb

@@ -37,6 +37,7 @@ const stdinListener = new StdInListener(line=>{
         cmd.stdin('exit');
         cmd.on('close', ()=>{
             stdinListener.remove();
+            clearInterval(interval);
         });
         break;
     default:
@@ -45,6 +46,6 @@ const stdinListener = new StdInListener(line=>{
     }
 });
 
-setInterval(()=>{
+const interval = setInterval(()=>{
     console.log('disturb message');
 },5000);
