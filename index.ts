@@ -219,9 +219,10 @@ export class Spawn extends EventEmitter
         this.spawned.stdin.write(iconv.encode(message+'\n', charset));
     }
 
-    constructor(command:string, args?:string[])
+    constructor(command:string, args?:string[], options?:{cmdWrap?:boolean})
     {
         super();
+        if (!options) options = {};
         children.add(this);
 
         (async()=>{
@@ -229,19 +230,27 @@ export class Spawn extends EventEmitter
             if (isWindows)
             {
                 const cp = await exec('chcp');
-                const s = cp.indexOf(':') + 1; 
-                const e = cp.indexOf('\n', s)-1;
-                const codepage = cp.substring(s, e).trim();
-                charset = CPMAP.get(codepage) || 'utf8';
-                command = command.replace(/\//g, '\\');
-                let nargs = ['/s', '/c', command]; // for call global binary
-                if (args) nargs = nargs.concat(args);
                 if (this.killed)
                 {
                     this.emit('close');
                     return;
                 }
-                this.spawned = spawn('cmd', nargs);
+
+                const s = cp.indexOf(':') + 1; 
+                const e = cp.indexOf('\n', s)-1;
+                const codepage = cp.substring(s, e).trim();
+                charset = CPMAP.get(codepage) || 'utf8';
+                command = command.replace(/\//g, '\\');
+                if (options.cmdWrap)
+                {
+                    let nargs = ['/s', '/c', command]; // for call global binary
+                    if (args) nargs = nargs.concat(args);
+                    this.spawned = spawn('cmd', nargs);
+                }
+                else
+                {
+                    this.spawned = spawn(command, args);
+                }
             }
             else
             {
